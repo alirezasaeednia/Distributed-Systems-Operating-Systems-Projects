@@ -1,0 +1,120 @@
+import random
+import time
+import multiprocessing
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+# --- Data Structures ---
+
+# Simulate nodes and their properties
+class Node:
+    def __init__(self, name):
+        self.name = name
+        self.current_task = None
+        self.task_queue = []
+        self.network_latency = random.uniform(0.0, 0.2) # Simulated network latency
+        self.processing_time = 0 # Time spent processing tasks
+
+# --- Task Processing ---
+
+def process_task(node, task_id):
+    """Simulates processing a task on a node.
+
+    Args:
+        node (Node): The node object where the task is processed.
+        task_id (int): The ID of the task.
+
+    """
+    node.current_task = task_id
+    node.processing_time = random.uniform(0.1, 0.5) + node.network_latency # Simulated processing
+    time.sleep(node.processing_time)
+    print(f"Task {task_id} completed on Node {node.name}")
+
+# --- Task Scheduling ---
+
+def schedule_tasks(tasks, nodes, update_plot):
+    """Schedules tasks to nodes using weighted round-robin.
+
+    Args:
+        tasks (list): List of task IDs.
+        nodes (list): List of Node objects.
+        update_plot (function): Function to update the animation plot.
+
+    """
+    task_index = 0
+    node_index = 0
+    while task_index < len(tasks):
+        node = nodes[node_index]
+        task = tasks[task_index]
+
+        # Assign task to node
+        node.task_queue.append(task)
+        print(f"Task {task} assigned to {node.name}")
+
+        # Update the plot for animation
+        update_plot()
+
+        # Move to the next node (weighted round-robin)
+        node_index = (node_index + 1) % len(nodes)
+
+        # Move to the next task
+        task_index += 1
+
+        # Start processing tasks in the node's queue
+        while node.task_queue:
+            current_task = node.task_queue.pop(0)
+            process = multiprocessing.Process(target=process_task, args=(node, current_task))
+            process.start()
+
+            # Update the plot for animation
+            update_plot()
+
+            # Wait for the task to finish before assigning the next one
+            process.join()
+
+# --- Animation Function ---
+
+def animate(frame, nodes, tasks):
+    """Updates the animation plot for each frame.
+
+    Args:
+        frame (int): The current frame number.
+        nodes (list): List of Node objects.
+        tasks (list): List of task IDs.
+
+    """
+    ax.clear() # Clear the plot for the new frame
+
+    # Display nodes and their properties
+    for i, node in enumerate(nodes):
+        ax.bar(i, node.processing_time, label=node.name)
+        ax.text(i, node.processing_time, f"{node.name}\nLatency: {node.network_latency:.2f}", ha="center", va="bottom")
+
+    # Display tasks on nodes
+    for node in nodes:
+        if node.current_task is not None:
+            ax.text(nodes.index(node), node.processing_time, f"Task {node.current_task}", ha="center", va="top", color="red")
+
+    # Update plot title
+    ax.set_title(f"Task Distribution (Frame {frame})")
+    ax.set_xlabel("Nodes")
+    ax.set_ylabel("Processing Time")
+    ax.legend()
+    return ax,
+
+# --- Main Function ---
+
+if __name__ == "__main__":
+    # Simulate tasks and nodes
+    tasks = list(range(10)) # 10 tasks
+    nodes = [Node("Node 1"), Node("Node 2"), Node("Node 3")] # 3 nodes
+
+    # Create the animation figure
+    fig, ax = plt.subplots()
+
+    # Start the animation
+    ani = animation.FuncAnimation(fig, animate, frames=len(tasks) + 1, fargs=(nodes, tasks), interval=1000, blit=True)
+    plt.show()
+
+    # Start task scheduling
+    schedule_tasks(tasks, nodes, lambda: ani.event_source.stop()) # Stop animation when scheduling is complete
